@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotesPlus - Tus Notas Cristalinas</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Una aplicación de notas con diseño cristalino estilo Windows Aero">
+    <meta name="theme-color" content="#f093fb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NotesPlus">
+    <meta name="msapplication-TileColor" content="#f093fb">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Pantalla de carga -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="crystal-loader"></div>
+            <h2>NotesPlus</h2>
+            <p>Cargando tu espacio de notas...</p>
+        </div>
+    </div>
+
+    <!-- Pantalla de autenticación -->
+    <div id="auth-screen" class="auth-screen hidden">
+        <div class="auth-container">
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fas fa-gem"></i>
+                    <h1>NotesPlus</h1>
+                </div>
+                <p>Tu espacio personal de notas con estilo cristalino</p>
+            </div>
+
+            <!-- Formulario de inicio de sesión -->
+            <div id="login-form" class="auth-form">
+                <h2>Iniciar Sesión</h2>
+                <form id="loginForm">
+                    <div class="input-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="loginUsername" placeholder="Usuario o Email" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="loginPassword" placeholder="Contraseña" required>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Iniciar Sesión
+                    </button>
+                </form>
+                <p class="auth-switch">
+                    ¿No tienes cuenta? 
+                    <a href="#" id="showRegister">Regístrate aquí</a>
+                </p>
+            </div>
+
+            <!-- Formulario de registro -->
+            <div id="register-form" class="auth-form hidden">
+                <h2>Crear Cuenta</h2>
+                <form id="registerForm">
+                    <div class="input-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="registerUsername" placeholder="Nombre de usuario" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="registerEmail" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="registerPassword" placeholder="Contraseña" required>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-user-plus"></i>
+                        Crear Cuenta
+                    </button>
+                </form>
+                <p class="auth-switch">
+                    ¿Ya tienes cuenta? 
+                    <a href="#" id="showLogin">Inicia sesión aquí</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla principal de notas -->
+    <div id="notes-screen" class="notes-screen hidden">
+        <!-- Contenido principal -->
+
+        <!-- Contenido principal -->
+        <main class="main-content">
+            <!-- Grid de notas -->
+            <div id="notesGrid" class="notes-grid">
+                <!-- Las notas se cargarán dinámicamente aquí -->
+            </div>
+        </main>
+
+        <!-- Contenedor de acciones flotantes -->
+        <div class="floating-actions">
+            <!-- Botón de búsqueda expandible -->
+            <div class="search-floating-container">
+                <button id="searchToggleBtn" class="search-toggle-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+                <div id="searchFloatingInput" class="search-floating-input hidden">
+                    <input type="text" id="searchInput" placeholder="Buscar notas...">
+                    <button id="searchCloseBtn" class="search-close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Botón flotante para nueva nota -->
+            <button id="newNoteBtn" class="floating-btn">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal para crear/editar notas -->
+    <div id="noteModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nueva Nota</h3>
+                <button id="closeModal" class="btn-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <input type="text" id="noteTitle" placeholder="Título de la nota" required>
+                </div>
+                
+                <!-- Barra de herramientas de formato -->
+                <div class="format-toolbar">
+                    <div class="format-group">
+                        <button type="button" class="format-btn" data-command="formatBlock" data-value="h1" title="Título 1">
+                            <i class="fas fa-heading"></i>
+                        </button>
+                        <button type="button" class="format-btn" data-command="formatBlock" data-value="h2" title="Título 2">
+                            <i class="fas fa-heading" style="font-size: 0.8em;"></i>
+                        </button>
+                        <button type="button" class="format-btn" data-command="formatBlock" data-value="p" title="Párrafo">
+                            <span style="font-weight: normal;">Aa</span>
+                        </button>
+                    </div>
+                    <div class="format-group">
+                        <button type="button" class="format-btn" data-command="bold" title="Negrita">
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button type="button" class="format-btn" data-command="italic" title="Cursiva">
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button type="button" class="format-btn" data-command="underline" title="Subrayado">
+                            <i class="fas fa-underline"></i>
+                        </button>
+                        <button type="button" class="format-btn" data-command="removeFormat" title="Eliminar formato">
+                            <i class="fas fa-remove-format"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Editor de contenido -->
+                <div class="editor-container">
+                    <div id="noteContent" class="rich-editor" contenteditable="true" placeholder="Escribe tu nota aquí..."></div>
+                </div>
+                
+                <!-- Panel de nodos -->
+                <div class="nodes-panel">
+                    <h4>Nodos disponibles:</h4>
+                    <div class="available-nodes">
+                        <div class="node-item" draggable="true" data-node-type="list">
+                            <i class="fas fa-list"></i>
+                            <span>Lista</span>
+                        </div>
+                        <div class="node-item" draggable="true" data-node-type="flag-list">
+                            <i class="fas fa-flag"></i>
+                            <span>Lista con Flags</span>
+                        </div>
+                        <div class="node-item" draggable="true" data-node-type="todo">
+                            <i class="fas fa-check-square"></i>
+                            <span>TODOs</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="color-picker">
+                    <label>Color de la nota:</label>
+                    <div class="color-options">
+                        <div class="color-option" data-color="#ffffff" style="background: #ffffff;"></div>
+                        <div class="color-option" data-color="#ffeb3b" style="background: #ffeb3b;"></div>
+                        <div class="color-option" data-color="#4caf50" style="background: #4caf50;"></div>
+                        <div class="color-option" data-color="#2196f3" style="background: #2196f3;"></div>
+                        <div class="color-option" data-color="#ff9800" style="background: #ff9800;"></div>
+                        <div class="color-option" data-color="#e91e63" style="background: #e91e63;"></div>
+                        <div class="color-option" data-color="#9c27b0" style="background: #9c27b0;"></div>
+                        <div class="color-option" data-color="#607d8b" style="background: #607d8b;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelNote" class="btn-secondary">Cancelar</button>
+                <button id="saveNote" class="btn-primary">Guardar Nota</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <p>
+            <i class="fas fa-copyright"></i> 
+            Made with <i class="fas fa-heart"></i> for someone special
+        </p>
+    </footer>
+
+    <script src="app.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('Service Worker registrado exitosamente:', registration.scope);
+                        
+                        // Verificar actualizaciones
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Nueva versión disponible
+                                    if (confirm('Hay una nueva versión disponible. ¿Quieres actualizar?')) {
+                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.log('Error al registrar Service Worker:', error);
+                    });
+            });
+        }
+        
+        // Manejar instalación de PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Mostrar botón de instalación personalizado
+            const installBtn = document.createElement('button');
+            installBtn.textContent = 'Instalar NotesPlus';
+            installBtn.className = 'install-btn';
+            installBtn.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                right: 20px;
+                background: linear-gradient(45deg, #667eea, #f093fb);
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 25px;
+                cursor: pointer;
+                font-weight: 500;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                z-index: 1000;
+                animation: slideUp 0.3s ease-out;
+            `;
+            
+            installBtn.addEventListener('click', () => {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('Usuario aceptó la instalación');
+                    } else {
+                        console.log('Usuario rechazó la instalación');
+                    }
+                    deferredPrompt = null;
+                    installBtn.remove();
+                });
+            });
+            
+            document.body.appendChild(installBtn);
+            
+            // Auto-ocultar después de 10 segundos
+            setTimeout(() => {
+                if (installBtn.parentNode) {
+                    installBtn.remove();
+                }
+            }, 10000);
+        });
+        
+        // Manejar evento de instalación completada
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA instalada exitosamente');
+            deferredPrompt = null;
+        });
+    </script>
+</body>
+</html>
