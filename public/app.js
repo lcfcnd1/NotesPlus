@@ -318,8 +318,23 @@ async function createNoteElement(note) {
     noteDiv.className = 'note-card';
     noteDiv.style.backgroundColor = note.color;
     
-    const createdDate = new Date(note.created_at).toLocaleDateString('es-ES');
-    const updatedDate = new Date(note.updated_at).toLocaleDateString('es-ES');
+    // Manejar fechas de forma más robusta
+    let createdDate = 'Fecha no disponible';
+    let updatedDate = 'Fecha no disponible';
+    
+    if (note.created_at) {
+        const createdDateObj = new Date(note.created_at);
+        if (!isNaN(createdDateObj.getTime())) {
+            createdDate = createdDateObj.toLocaleDateString('es-ES');
+        }
+    }
+    
+    if (note.updated_at) {
+        const updatedDateObj = new Date(note.updated_at);
+        if (!isNaN(updatedDateObj.getTime())) {
+            updatedDate = updatedDateObj.toLocaleDateString('es-ES');
+        }
+    }
     
     // Crear contenido de la nota
     let noteContent = '';
@@ -756,10 +771,10 @@ async function handleSaveNote() {
             // Actualizar la variable global notes directamente
             if (currentNoteId) {
                 // Actualizar nota existente
-                updateExistingNoteInArray(data);
+                updateExistingNoteInArray(data.note);
             } else {
                 // Agregar nueva nota
-                addNewNoteToArray(data);
+                addNewNoteToArray(data.note);
             }
             
             // Renderizar con los datos actualizados
@@ -939,8 +954,8 @@ function updateNotesArray(noteId, isPinned) {
 function updateExistingNoteInArray(updatedNote) {
     const noteIndex = notes.findIndex(note => note.id === updatedNote.id);
     if (noteIndex !== -1) {
-        // Actualizar la nota existente
-        notes[noteIndex] = updatedNote;
+        // Actualizar la nota existente con todos los campos
+        notes[noteIndex] = { ...notes[noteIndex], ...updatedNote };
         
         // Reordenar el array
         notes.sort((a, b) => {
@@ -953,7 +968,7 @@ function updateExistingNoteInArray(updatedNote) {
 }
 
 function addNewNoteToArray(newNote) {
-    // Agregar la nueva nota al array
+    // Agregar la nueva nota al array con todos los campos
     notes.unshift(newNote);
     
     // Reordenar el array

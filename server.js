@@ -221,10 +221,21 @@ app.post('/api/notes', authenticateToken, [
           });
         }
 
-        res.status(201).json({
-          message: 'Nota creada exitosamente',
-          note: { id: noteId, title, content, content_html, color }
-        });
+        // Obtener la nota completa con fechas
+        db.get(
+          'SELECT * FROM notes WHERE id = ?',
+          [noteId],
+          (err, note) => {
+            if (err) {
+              return res.status(500).json({ error: 'Error al obtener la nota creada' });
+            }
+            
+            res.status(201).json({
+              message: 'Nota creada exitosamente',
+              note: note
+            });
+          }
+        );
       }
     );
   } catch (error) {
@@ -274,7 +285,21 @@ app.put('/api/notes/:id', authenticateToken, [
           });
         }
 
-        res.json({ message: 'Nota actualizada exitosamente' });
+        // Obtener la nota actualizada completa
+        db.get(
+          'SELECT * FROM notes WHERE id = ? AND user_id = ?',
+          [id, req.user.id],
+          (err, note) => {
+            if (err) {
+              return res.status(500).json({ error: 'Error al obtener la nota actualizada' });
+            }
+            
+            res.json({ 
+              message: 'Nota actualizada exitosamente',
+              note: note
+            });
+          }
+        );
       }
     );
   } catch (error) {
