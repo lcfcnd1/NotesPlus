@@ -127,8 +127,29 @@ class MigrationManager {
           });
         }
       },
+      {
+        version: 4,
+        description: 'Agregar campo is_pinned para fijar notas',
+        up: () => {
+          return new Promise((resolve, reject) => {
+            this.db.run(`ALTER TABLE notes ADD COLUMN is_pinned BOOLEAN DEFAULT 0`, (err) => {
+              if (err) {
+                // Si la columna ya existe, no es un error
+                if (err.message.includes('duplicate column name')) {
+                  console.log('Columna is_pinned ya existe en notes');
+                  resolve();
+                } else {
+                  reject(err);
+                }
+              } else {
+                resolve();
+              }
+            });
+          });
+        }
+      },
       // {
-      //   version: 4,
+      //   version: 5,
       //   description: 'Agregar campo de favoritos a las notas',
       //   up: () => {
       //     return new Promise((resolve, reject) => {

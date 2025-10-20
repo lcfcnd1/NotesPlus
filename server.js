@@ -10,7 +10,7 @@ const path = require('path');
 const MigrationManager = require('./migrations/migrations');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3006;
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_secreto_super_seguro_aqui';
 
 // Middleware
@@ -19,12 +19,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100 // límite de 100 requests por ventana
-});
-app.use(limiter);
+
 
 // Configurar SQLite
 const db = new sqlite3.Database('./notes.db');
@@ -184,7 +179,7 @@ app.post('/api/login', [
 // Rutas de notas
 app.get('/api/notes', authenticateToken, (req, res) => {
   db.all(
-    'SELECT * FROM notes WHERE user_id = ? ORDER BY updated_at DESC',
+    'SELECT * FROM notes WHERE user_id = ? ORDER BY is_pinned DESC, updated_at DESC',
     [req.user.id],
     (err, notes) => {
       if (err) {
@@ -303,6 +298,35 @@ app.delete('/api/notes/:id', authenticateToken, (req, res) => {
       }
 
       res.json({ message: 'Nota eliminada exitosamente' });
+    }
+  );
+});
+
+// Ruta para fijar/desfijar notas
+app.patch('/api/notes/:id/pin', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { is_pinned } = req.body;
+
+  if (typeof is_pinned !== 'boolean') {
+    return res.status(400).json({ error: 'is_pinned debe ser un valor booleano' });
+  }
+
+  db.run(
+    'UPDATE notes SET is_pinned = ? WHERE id = ? AND user_id = ?',
+    [is_pinned ? 1 : 0, id, req.user.id],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: 'Error al actualizar el estado de fijado' });
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Nota no encontrada' });
+      }
+
+      res.json({ 
+        message: is_pinned ? 'Nota fijada exitosamente' : 'Nota desfijada exitosamente',
+        is_pinned 
+      });
     }
   );
 });

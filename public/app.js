@@ -294,9 +294,22 @@ async function renderNotes(filteredNotes = null) {
         return;
     }
     
-    for (const note of notesToRender) {
+    // Crear elementos de notas con animación escalonada
+    for (let i = 0; i < notesToRender.length; i++) {
+        const note = notesToRender[i];
         const noteElement = await createNoteElement(note);
+        
+        // Configurar animación inicial
+        noteElement.style.opacity = '0';
+        noteElement.style.transform = 'translateY(20px)';
         elements.notesGrid.appendChild(noteElement);
+        
+        // Animar la aparición con delay escalonado
+        setTimeout(() => {
+            noteElement.style.transition = 'all 0.3s ease-out';
+            noteElement.style.opacity = '1';
+            noteElement.style.transform = 'translateY(0)';
+        }, i * 50);
     }
 }
 
@@ -318,11 +331,17 @@ async function createNoteElement(note) {
     }
     
     noteDiv.innerHTML = `
-        <div class="note-title">${escapeHtml(note.title)}</div>
+        <div class="note-title">
+            ${note.is_pinned ? '<i class="fas fa-thumbtack pinned-icon"></i>' : ''}
+            ${escapeHtml(note.title)}
+        </div>
         <div class="note-content">${noteContent}</div>
         <div class="note-meta">
             <span>Actualizada: ${updatedDate}</span>
             <div class="note-actions">
+                <button class="note-action pin-btn ${note.is_pinned ? 'pinned' : ''}" data-note-id="${note.id}" title="${note.is_pinned ? 'Desfijar nota' : 'Fijar nota'}">
+                    <i class="fas fa-thumbtack"></i>
+                </button>
                 <button class="note-action edit-btn" data-note-id="${note.id}">
                     <i class="fas fa-edit"></i>
                 </button>
@@ -336,9 +355,11 @@ async function createNoteElement(note) {
     // Agregar event listeners para los botones
     const editBtn = noteDiv.querySelector('.edit-btn');
     const deleteBtn = noteDiv.querySelector('.delete-btn');
+    const pinBtn = noteDiv.querySelector('.pin-btn');
     
     editBtn.addEventListener('click', () => editNote(note.id));
     deleteBtn.addEventListener('click', () => deleteNote(note.id));
+    pinBtn.addEventListener('click', () => togglePinNote(note.id, note.is_pinned));
     
     return noteDiv;
 }
@@ -731,7 +752,19 @@ async function handleSaveNote() {
         
         if (response.ok) {
             closeNoteModal();
-            loadNotes();
+            
+            // Actualizar la variable global notes directamente
+            if (currentNoteId) {
+                // Actualizar nota existente
+                updateExistingNoteInArray(data);
+            } else {
+                // Agregar nueva nota
+                addNewNoteToArray(data);
+            }
+            
+            // Renderizar con los datos actualizados
+            await renderNotes();
+            
             showNotification(
                 currentNoteId ? 'Nota actualizada exitosamente' : 'Nota creada exitosamente',
                 'success'
@@ -831,7 +864,12 @@ async function deleteNote(noteId) {
         const data = await response.json();
         
         if (response.ok) {
-            loadNotes();
+            // Remover la nota del array global
+            removeNoteFromArray(noteId);
+            
+            // Renderizar con los datos actualizados
+            await renderNotes();
+            
             showNotification('Nota eliminada exitosamente', 'success');
         } else {
             showNotification(data.error || 'Error al eliminar la nota', 'error');
@@ -839,6 +877,152 @@ async function deleteNote(noteId) {
     } catch (error) {
         showNotification('Error de conexión', 'error');
     }
+}
+
+async function togglePinNote(noteId, currentPinnedState) {
+    try {
+        // Animar el movimiento antes de hacer la petición
+        animateNoteMovement(noteId, !currentPinnedState);
+        
+        const response = await fetch(`${API_BASE_URL}/notes/${noteId}/pin`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                is_pinned: !currentPinnedState
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showNotification(result.message, 'success');
+            
+            // Actualizar el estado visual inmediatamente
+            updatePinButtonVisual(noteId, !currentPinnedState);
+            
+            // Actualizar la variable global notes directamente
+            updateNotesArray(noteId, !currentPinnedState);
+            
+            // Renderizar con los datos actualizados
+            await renderNotes();
+            
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Error al actualizar la nota', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    }
+}
+
+function updateNotesArray(noteId, isPinned) {
+    // Encontrar la nota en el array y actualizar su estado
+    const noteIndex = notes.findIndex(note => note.id === noteId);
+    if (noteIndex !== -1) {
+        notes[noteIndex].is_pinned = isPinned;
+        
+        // Reordenar el array: notas fijadas primero, luego por fecha de actualización
+        notes.sort((a, b) => {
+            // Primero por estado de fijado (fijadas primero)
+            if (a.is_pinned !== b.is_pinned) {
+                return b.is_pinned - a.is_pinned;
+            }
+            // Luego por fecha de actualización (más recientes primero)
+            return new Date(b.updated_at) - new Date(a.updated_at);
+        });
+    }
+}
+
+function updateExistingNoteInArray(updatedNote) {
+    const noteIndex = notes.findIndex(note => note.id === updatedNote.id);
+    if (noteIndex !== -1) {
+        // Actualizar la nota existente
+        notes[noteIndex] = updatedNote;
+        
+        // Reordenar el array
+        notes.sort((a, b) => {
+            if (a.is_pinned !== b.is_pinned) {
+                return b.is_pinned - a.is_pinned;
+            }
+            return new Date(b.updated_at) - new Date(a.updated_at);
+        });
+    }
+}
+
+function addNewNoteToArray(newNote) {
+    // Agregar la nueva nota al array
+    notes.unshift(newNote);
+    
+    // Reordenar el array
+    notes.sort((a, b) => {
+        if (a.is_pinned !== b.is_pinned) {
+            return b.is_pinned - a.is_pinned;
+        }
+        return new Date(b.updated_at) - new Date(a.updated_at);
+    });
+}
+
+function removeNoteFromArray(noteId) {
+    const noteIndex = notes.findIndex(note => note.id === noteId);
+    if (noteIndex !== -1) {
+        notes.splice(noteIndex, 1);
+    }
+}
+
+function updatePinButtonVisual(noteId, isPinned) {
+    // Buscar el botón de fijar en la tarjeta de la nota
+    const noteCard = document.querySelector(`[data-note-id="${noteId}"]`)?.closest('.note-card');
+    if (!noteCard) return;
+    
+    const pinBtn = noteCard.querySelector('.pin-btn');
+    const titleElement = noteCard.querySelector('.note-title');
+    
+    if (pinBtn && titleElement) {
+        // Actualizar el botón
+        if (isPinned) {
+            pinBtn.classList.add('pinned');
+            pinBtn.title = 'Desfijar nota';
+            
+            // Agregar icono al título si no existe
+            if (!titleElement.querySelector('.pinned-icon')) {
+                const pinnedIcon = document.createElement('i');
+                pinnedIcon.className = 'fas fa-thumbtack pinned-icon';
+                titleElement.insertBefore(pinnedIcon, titleElement.firstChild);
+            }
+            
+            // Agregar clase de resaltado a la tarjeta
+            noteCard.classList.add('pinned-highlight');
+            setTimeout(() => {
+                noteCard.classList.remove('pinned-highlight');
+            }, 2000);
+            
+        } else {
+            pinBtn.classList.remove('pinned');
+            pinBtn.title = 'Fijar nota';
+            
+            // Remover icono del título
+            const pinnedIcon = titleElement.querySelector('.pinned-icon');
+            if (pinnedIcon) {
+                pinnedIcon.remove();
+            }
+        }
+    }
+}
+
+function animateNoteMovement(noteId, isPinned) {
+    const noteCard = document.querySelector(`[data-note-id="${noteId}"]`)?.closest('.note-card');
+    if (!noteCard) return;
+    
+    // Agregar clase de movimiento
+    noteCard.classList.add('moving');
+    
+    // Remover la clase después de la animación
+    setTimeout(() => {
+        noteCard.classList.remove('moving');
+    }, 300);
 }
 
 async function handleSearch() {
@@ -946,6 +1130,30 @@ function setupRichEditor() {
         updateFormatButtons();
     });
     
+    // Manejar clic en editor vacío para posicionar cursor
+    editor.addEventListener('click', (e) => {
+        // Si el editor está vacío o solo tiene placeholder, limpiar y posicionar cursor
+        if (editor.textContent.trim() === '' || editor.textContent.trim() === 'Escribe tu nota aquí...') {
+            editor.innerHTML = '';
+            editor.focus();
+            
+            // Crear un rango al inicio del editor
+            const range = document.createRange();
+            range.setStart(editor, 0);
+            range.setEnd(editor, 0);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    });
+    
+    // Manejar focus para limpiar placeholder
+    editor.addEventListener('focus', () => {
+        if (editor.textContent.trim() === '' || editor.textContent.trim() === 'Escribe tu nota aquí...') {
+            editor.innerHTML = '';
+        }
+    });
+    
     // Detectar selección de texto
     editor.addEventListener('mouseup', updateFormatButtons);
     editor.addEventListener('keyup', updateFormatButtons);
@@ -1026,27 +1234,46 @@ function setupDraggableNodes() {
             return;
         }
         
-        // Obtener posición del cursor
-        const selection = window.getSelection();
-        let range;
-        
-        if (selection.rangeCount > 0) {
-            range = selection.getRangeAt(0);
-        } else {
-            range = document.createRange();
-            range.selectNodeContents(editor);
-            range.collapse(false);
-        }
-        
         // Crear nodo según el tipo
         const nodeElement = createNodeElement(nodeType);
         
-        // Insertar nodo en la posición del cursor
-        range.deleteContents();
-        range.insertNode(nodeElement);
-        
-        // Limpiar selección
-        selection.removeAllRanges();
+        // Si el editor está vacío o solo tiene placeholder
+        if (editor.textContent.trim() === '' || editor.textContent.trim() === 'Escribe tu nota aquí...') {
+            // Limpiar el contenido y agregar el nodo
+            editor.innerHTML = '';
+            editor.appendChild(nodeElement);
+            
+            // Agregar un espacio después del nodo para continuar escribiendo
+            const space = document.createTextNode(' ');
+            editor.appendChild(space);
+            
+            // Posicionar cursor después del nodo
+            const range = document.createRange();
+            range.setStartAfter(nodeElement);
+            range.setEndAfter(nodeElement);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        } else {
+            // Si hay contenido, usar la lógica de cursor existente
+            const selection = window.getSelection();
+            let range;
+            
+            if (selection.rangeCount > 0) {
+                range = selection.getRangeAt(0);
+            } else {
+                range = document.createRange();
+                range.selectNodeContents(editor);
+                range.collapse(false);
+            }
+            
+            // Insertar nodo en la posición del cursor
+            range.deleteContents();
+            range.insertNode(nodeElement);
+            
+            // Limpiar selección
+            selection.removeAllRanges();
+        }
         
         // Enfocar el editor
         editor.focus();
