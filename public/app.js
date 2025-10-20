@@ -1,5 +1,5 @@
 // Configuración de la aplicación
-const API_BASE_URL = window.location.origin + '/api';
+const API_BASE_URL = window.location.origin + '/notas/api';
 let currentUser = null;
 let authToken = null;
 let notes = [];
